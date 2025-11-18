@@ -1,17 +1,37 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+const client = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
 
+// SAFE EMBEDDING FUNCTION WITH RETRIES
 export async function embed(text) {
-  const response = await client.embeddings.create({
-    model: "text-embedding-3-small",
-    input: text
-  });
+  const maxRetries = 5;
 
-  return response.data[0].embedding;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Groq Embed Attempt ${attempt}`);
+
+      const res = await client.embeddings.create({
+        model: "nomic-embed-text-v1.5",   // ✔ FIXED MODEL
+        input: text,
+      });
+
+      return res.data[0].embedding;
+
+    } catch (err) {
+      console.log(`Embed attempt ${attempt} failed →`, err?.status || err);
+
+      // last attempt → throw
+      if (attempt === maxRetries) {
+        throw new Error(`Groq embedding failed after ${maxRetries} attempts.`);
+      }
+
+      // wait before retry
+      await new Promise(r => setTimeout(r, attempt * 400));
+    }
+  }
 }

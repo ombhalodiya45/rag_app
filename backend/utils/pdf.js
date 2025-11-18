@@ -1,39 +1,26 @@
-// utils/pdf.js — text extraction using pdfjs-dist legacy build in Node (ESM)
+// backend/utils/pdf.js
+// Text extraction using @cedrugs/pdf-parse (pure ESM, default export)
 
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
-
-// Configure worker for Node/ESM
-GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/legacy/build/pdf.worker.mjs",
-  import.meta.url
-).toString();
+import pdf from "@cedrugs/pdf-parse"; // ESM-friendly wrapper [web:282]
 
 /**
- * Extract all text from a PDF.
- * Accepts Buffer or Uint8Array and always converts to Uint8Array for pdf.js.
+ * Extract text from a PDF.
+ * Accepts Node Buffer (from multer) or Uint8Array.
  */
 export async function extractTextFromPDF(binary) {
   if (!binary) {
     throw new Error("No binary data provided to extractTextFromPDF");
   }
 
-  // ALWAYS convert Buffer -> Uint8Array (no instanceof check)
-  const data = new Uint8Array(binary);
+  // Normalize to Buffer because @cedrugs/pdf-parse is happy with it [web:282]
+  const buf = Buffer.isBuffer(binary) ? binary : Buffer.from(binary);
 
-  // Load PDF
-  const pdf = await getDocument({ data }).promise;
+  const data = await pdf(buf); // pdf is a function: pdf(Buffer) -> { text, ... } [web:282][web:283]
+  const text = data.text || "";
 
-  let fullText = "";
-  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ");
-
-    fullText += pageText + "\n";
+  if (!text.trim()) {
+    throw new Error("No text could be extracted from the PDF");
   }
 
-  await pdf.destroy();
-  return fullText;
+  return text;
 }
