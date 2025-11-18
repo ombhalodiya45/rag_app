@@ -1,0 +1,115 @@
+/* ===== GENERAL RESET + BASE STYLE ===== */
+
+body {
+  margin: 0;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background-color: #f2f4f7;
+  min-height: 100vh;
+}
+
+/* ===== CONTAINER ===== */
+
+.app-wrapper {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+/* ===== CARD ===== */
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  transition: 0.2s;
+}
+
+.card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.card-title {
+  text-align: center;
+  font-size: 26px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+/* ===== INPUTS ===== */
+
+.input-file,
+.textarea {
+  width: 100%;
+  padding: 12px;
+  background: #f3f3f3;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+}
+
+.textarea {
+  resize: none;
+}
+
+/* ===== BUTTONS ===== */
+
+.btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-blue {
+  background-color: #2563eb;
+}
+
+.btn-blue:hover {
+  background-color: #1d4ed8;
+}
+
+.btn-green {
+  background-color: #16a34a;
+}
+
+.btn-green:hover {
+  background-color: #15803d;
+}
+
+/* ===== ANSWER BOX ===== */
+
+.answer-box {
+  margin-top: 20px;
+  padding: 16px;
+  background: #e8fbe8;
+  border-left: 4px solid #16a34a;
+  border-radius: 8px;
+}
+
+.answer-title {
+  font-weight: 600;
+  color: #143d14;
+  margin-bottom: 6px;
+}
+
+.answer-text {
+  font-size: 14px;
+  color: #333;
+}

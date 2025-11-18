@@ -1,0 +1,48 @@
+# --------------------
+# Node dependencies
+# --------------------
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# --------------------
+# Build output
+# --------------------
+frontend/dist/
+frontend/build/
+backend/dist/
+backend/build/
+
+# --------------------
+# Local databases / vector store
+# --------------------
+backend/lancedb/
+
+# If you store temporary PDFs or large test files, ignore them:
+# backend/pdfs/*.pdf
+
+# --------------------
+# Environment / secrets
+# --------------------
+.env
+backend/.env
+frontend/.env
+
+# --------------------
+# Logs
+# --------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --------------------
+# OS / editor junk
+# --------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+lancedb

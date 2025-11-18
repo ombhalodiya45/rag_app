@@ -1,0 +1,66 @@
+/* --------------------------------------------------
+   GLOBAL ROOT RESET — CLEAN + SAFE
+-------------------------------------------------- */
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color: #111;                 /* Normal readable text */
+  background-color: #ffffff;   /* Light background (NO forced dark mode) */
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --------------------------------------------------
+   LINKS
+-------------------------------------------------- */
+a {
+  font-weight: 500;
+  color: #2563eb;     /* Subtle blue */
+  text-decoration: none;
+}
+
+a:hover {
+  color: #1d4ed8;
+}
+
+/* --------------------------------------------------
+   BODY
+-------------------------------------------------- */
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #ffffff; /* Matches your App UI */
+  color: #111;
+}
+
+/* --------------------------------------------------
+   HEADINGS
+-------------------------------------------------- */
+h1 {
+  font-size: 2.2rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+/* --------------------------------------------------
+   BUTTON RESET (NO OVERRIDE)
+-------------------------------------------------- */
+button {
+  all: unset;  /* Removes default browser styling */
+  display: inline-block;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------
+   DO NOT FORCE THEME ANYMORE
+-------------------------------------------------- */
+@media (prefers-color-scheme: light) {
+  /* Empty because we do not need it */
+}
