@@ -16,7 +16,7 @@ export async function embed(text) {
       console.log(`Groq Embed Attempt ${attempt}`);
 
       const res = await client.embeddings.create({
-        model: "nomic-embed-text-v1.5",   // ✔ FIXED MODEL
+        model: "nomic-embed-text",   // ✔ FIXED MODEL
         input: text,
       });
 
