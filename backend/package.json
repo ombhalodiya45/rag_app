@@ -13,6 +13,7 @@
   "dependencies": {
     "@cedrugs/pdf-parse": "^1.0.0",
     "@chroma-core/default-embed": "^0.1.9",
+    "@huggingface/inference": "^4.13.3",
     "@lancedb/lancedb": "^0.22.3",
     "@langchain/core": "^1.0.5",
     "@langchain/textsplitters": "^1.0.0",
