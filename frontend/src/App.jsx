@@ -31,24 +31,35 @@ function App() {
   };
 
   const handleAsk = async () => {
-    if (!question.trim()) return alert("Please enter a question"); // guard [web:74]
+  if (!question.trim()) return alert("Please enter a question");
 
-    setLoading(true);
-    setAnswer("");
+  setLoading(true);
+  setAnswer("");
 
-    try {
-      // Your backend defines POST /query, not /ask
-      const res = await axios.post("http://localhost:5000/query", { question }); // correct route [web:140]
-      // Backend returns { question, bestChunk, score }
-      const { bestChunk, score } = res.data || {}; // extract response fields [web:140]
-      setAnswer(bestChunk ? `${bestChunk}\n\n(score: ${score})` : "No answer found."); // display match [web:140]
-    } catch (error) {
-      console.error("QUERY ERROR:", error.response?.data || error.message); // log details [web:140]
-      alert(`Failed to get answer: ${error.response?.data?.error || error.message}`); // user hint [web:140]
-    } finally {
-      setLoading(false); // stop spinner [web:74]
+  try {
+    const res = await axios.post("http://localhost:5000/query", { question });
+
+    // Match backend response
+    const { answer: llmAnswer, bestChunks } = res.data || {};
+
+    if (llmAnswer) {
+      // Use LLM answer if present
+      setAnswer(llmAnswer);
+    } else if (bestChunks && bestChunks.length > 0) {
+      // Fallback: show top chunk + score
+      const top = bestChunks[0];
+      setAnswer(`${top.chunk}\n\n(score: ${top.score})`);
+    } else {
+      setAnswer("No answer found.");
     }
-  };
+  } catch (error) {
+    console.error("QUERY ERROR:", error.response?.data || error.message);
+    alert(`Failed to get answer: ${error.response?.data?.error || error.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="app-wrapper">

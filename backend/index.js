@@ -1,14 +1,16 @@
-// index.js
 import express from "express";
 import multer from "multer";
 import dotenv from "dotenv";
 import cors from "cors";
 
 import { extractTextFromPDF } from "./utils/pdf.js";
-import { connectMongo, connectLance } from "./db.js";
+import { connectMongo } from "./db.js"; // MongoDB connection remains unchanged
 import Document from "./models/Document.js";
 import { chunkText } from "./utils/chunk.js";
 import { embed } from "./utils/embed.js"; // HuggingFace embeddings
+
+// Pinecone integration
+import { getIndex } from "./pinecone.js"; // Assuming you created pinecone.js
 
 // Groq LLM (optional)
 import Groq from "groq-sdk";
@@ -33,33 +35,12 @@ app.use(express.json());
 const upload = multer({ storage: multer.memoryStorage() });
 
 // ---------------------- DB INIT ----------------------
+// MongoDB connection (LanceDB is removed, Pinecone will be used instead)
 await connectMongo();
-const lancedb = await connectLance();
 
-let table;
-const tables = await lancedb.tableNames();
-
-// HuggingFace "all-mpnet-base-v2" → 768 dims
+// Embedding dimension size
 const EMBEDDING_DIM = Number(process.env.EMBEDDING_DIM || 768);
 console.log("Using embedding size:", EMBEDDING_DIM);
-
-
-if (!tables.includes("rag")) {
-  table = await lancedb.createTable("rag", [
-    {
-      chunk: "string",
-      sourceId: "string",
-      embedding: {
-        type: "vector",
-        dimension: EMBEDDING_DIM,
-      },
-    },
-  ]);
-  console.log("Created LanceDB table: rag");
-} else {
-  table = await lancedb.openTable("rag");
-  console.log("Opened LanceDB table: rag");
-}
 
 // ---------------------- HELPERS ----------------------
 async function embedChunksSequentially(chunks, { delayMs = 200 } = {}) {
@@ -71,11 +52,15 @@ async function embedChunksSequentially(chunks, { delayMs = 200 } = {}) {
 
     const vector = await embed(chunk);
 
+    console.log("Chunk embed isArray:", Array.isArray(vector));
+    console.log("Chunk embed length:", vector?.length);
+
     if (!Array.isArray(vector) || vector.length !== EMBEDDING_DIM) {
-      console.log("❌ Skipping invalid vector len:", vector.length);
+      console.log("❌ Skipping invalid vector len:", vector?.length);
       continue;
     }
 
+    // Ensure plain array
     rows.push({ chunk, embedding: vector });
 
     if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
@@ -109,14 +94,27 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       sourceId: String(doc._id),
     }));
 
-    await table.add(rowsWithMeta);
+    // Replace LanceDB insert with Pinecone upsert
+    const index = await getIndex();
+    const vectors = rowsWithMeta.map((r, i) => ({
+      id: `${doc._id}-${i}`,
+      values: r.embedding,
+      metadata: {
+        chunk: r.chunk,
+        sourceId: String(doc._id),
+      },
+    }));
+
+    await index.upsert(vectors);
+    console.log("Inserted rows into Pinecone:", vectors.length);
 
     res.json({
       message: "PDF processed and stored successfully",
       mongoId: doc._id,
-      totalChunks: rowsWithMeta.length,
+      totalChunks: vectors.length,
     });
   } catch (err) {
+    console.error("UPLOAD ERROR:", err);
     res.status(500).json({
       error: "Failed to process PDF",
       details: err?.message || String(err),
@@ -124,7 +122,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
-// Query RAG
+// Query Pinecone
 app.post("/query", async (req, res) => {
   try {
     const { question, topK = 5 } = req.body;
@@ -135,31 +133,37 @@ app.post("/query", async (req, res) => {
 
     // 1. Embed the question
     const qEmbed = await embed(question);
-    console.log("Query embed size:", qEmbed.length);
+    console.log("Query embed size:", qEmbed?.length);
+    console.log("qEmbed isArray:", Array.isArray(qEmbed));
+    console.log("qEmbed class:", qEmbed?.constructor?.name);
 
-   if (!Array.isArray(qEmbed)) {
-  return res.status(500).json({ error: "Embedding output invalid" });
-}
+    if (!Array.isArray(qEmbed)) {
+      return res.status(500).json({ error: "Embedding output invalid" });
+    }
 
-if (qEmbed.length !== EMBEDDING_DIM) {
-  return res.status(500).json({
-    error: `Embedding size mismatch: expected ${EMBEDDING_DIM}, got ${qEmbed.length}`,
-  });
-}
+    if (qEmbed.length !== EMBEDDING_DIM) {
+      return res.status(500).json({
+        error: `Embedding size mismatch: expected ${EMBEDDING_DIM}, got ${qEmbed.length}`,
+      });
+    }
 
+    // 2. Pinecone Search
+    const index = await getIndex();
+    const queryResult = await index.query({
+      vector: qEmbed,
+      topK: topK,
+      includeMetadata: true,
+    });
 
-    // 2. LanceDB Search
-    const result = await table.search(qEmbed).limit(topK).execute();
+    const matches = queryResult.matches;
 
-    const rows = result.data; // ✔ Correct handling
-
-    if (!rows || rows.length === 0) {
+    if (!matches || matches.length === 0) {
       return res.status(404).json({ error: "No matching chunks found" });
     }
 
     // 3. Build context
-    const context = rows
-      .map((r, i) => `Chunk ${i + 1}:\n${r.chunk}`)
+    const context = matches
+      .map((m, i) => `Chunk ${i + 1}:\n${m.metadata.chunk}`)
       .join("\n\n---\n\n");
 
     // 4. Prompt for LLM
@@ -186,22 +190,35 @@ if (qEmbed.length !== EMBEDDING_DIM) {
       });
 
       llmAnswer = chatResp?.choices?.[0]?.message?.content ?? null;
-    } catch {
+    } catch (llmErr) {
+      console.error("Groq LLM error:", llmErr?.message || llmErr);
       llmAnswer = null;
     }
 
     res.json({
       question,
-      bestChunks: rows.map((r) => ({
-        chunk: r.chunk,
-        score: r._distance,
-        sourceId: r.sourceId,
+      bestChunks: matches.map((m) => ({
+        chunk: m.metadata.chunk,
+        score: m._score,  // Pinecone's similarity score
+        sourceId: m.metadata.sourceId,
       })),
       answer: llmAnswer,
     });
   } catch (err) {
+    console.error("QUERY ERROR:", err);
     res.status(500).json({ error: err?.message || String(err) });
   }
 });
+app.get("/test-pinecone", async (_req, res) => {
+  try {
+    const index = await getIndex();
+    const stats = await index.describeIndexStats();
+    res.json({ ok: true, stats });
+  } catch (err) {
+    console.error("Pinecone test error:", err);
+    res.status(500).json({ ok: false, error: err.message, stack: err.stack });
+  }
+});
+
 
 app.listen(5000, () => console.log("Server running on port 5000"));

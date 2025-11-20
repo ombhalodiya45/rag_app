@@ -21,8 +21,13 @@ export async function embed(text) {
       // Normalize nested output → flatten
       const vector = Array.isArray(result[0]) ? result[0] : result;
 
-      return Float32Array.from(vector);
+      // IMPORTANT: Return plain JS array
+      const arr = Array.from(vector);
 
+      console.log("Embed length:", arr.length);
+      console.log("Embed isArray:", Array.isArray(arr));
+
+      return arr;
     } catch (err) {
       console.log(`Embed attempt ${attempt} failed →`, err?.message || err);
 
